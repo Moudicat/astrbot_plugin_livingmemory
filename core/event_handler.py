@@ -5,7 +5,6 @@
 
 import asyncio
 import hashlib
-import re
 import time
 from typing import Any
 
@@ -209,18 +208,6 @@ class EventHandler:
                 if not actual_query:
                     logger.warning(f"[{session_id}] 原始用户消息为空，跳过记忆召回")
                     return
-
-                # 快捷记忆: "记一下xxx"
-                quick_memory = self._extract_quick_memory(actual_query)
-                if quick_memory:
-                    await self._store_quick_memory(
-                        event=event,
-                        content=quick_memory,
-                        session_id=session_id,
-                        memory_scope_id=memory_scope_id,
-                        persona_id=persona_id,
-                        scope_meta=scope_meta,
-                    )
 
                 # 执行记忆召回
                 logger.info(
@@ -1081,63 +1068,6 @@ class EventHandler:
             return ""
 
         return raw_message.strip()
-
-    def _extract_quick_memory(self, text: str) -> str | None:
-        """提取"记一下xxx"中的记忆内容。"""
-        if not text:
-            return None
-        match = re.match(r"^\s*记一下[：:，, ]*(.+)$", text)
-        if not match:
-            return None
-        content = match.group(1).strip()
-        return content if content else None
-
-    async def _store_quick_memory(
-        self,
-        event: AstrMessageEvent,
-        content: str,
-        session_id: str | None,
-        memory_scope_id: str | None,
-        persona_id: str | None,
-        scope_meta: dict[str, Any] | None = None,
-    ) -> None:
-        """快捷记忆写入：用户说"记一下xxx"时直接存储。"""
-        if not content or not content.strip():
-            return
-        if not self.memory_engine:
-            logger.warning(
-                f"[{session_id}] MemoryEngine 未初始化，无法记录快捷记忆"
-            )
-            return
-
-        is_group = event.get_message_type() == MessageType.GROUP_MESSAGE
-        metadata: dict[str, Any] = {
-            "interaction_type": "group_chat" if is_group else "private_chat",
-            "memory_type": "fact",
-            "source": "user_quick_note",
-        }
-        if session_id:
-            metadata.setdefault("source_session_id", session_id)
-        if scope_meta:
-            for key, value in scope_meta.items():
-                metadata.setdefault(key, value)
-
-        sender_id = event.get_sender_id()
-        if sender_id:
-            metadata["user_ids"] = [sender_id]
-            metadata["primary_user_id"] = sender_id
-
-        try:
-            doc_id = await self.memory_engine.add_memory(
-                content=content.strip(),
-                session_id=memory_scope_id,
-                persona_id=persona_id,
-                importance=0.7,
-                metadata=metadata,
-            )
-            logger.info(f"[{session_id}] 已记录快捷记忆 (ID: {doc_id})")
-        except Exception as e:
-            logger.error(f"[{session_id}] 记录快捷记忆失败: {e}", exc_info=True)
 
     async def _update_message_metadata(self, message):
         """更新消息的metadata到数据库"""
