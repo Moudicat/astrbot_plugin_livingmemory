@@ -133,6 +133,25 @@ async def test_handle_memory_recall_injects_system_prompt(handler, memory_engine
 
 
 @pytest.mark.asyncio
+async def test_handle_memory_recall_quick_memory(handler, memory_engine):
+    event = _make_event(group=False)
+    event.get_message_str = Mock(return_value="记一下我喜欢蓝色")
+    req = _make_req("记一下我喜欢蓝色")
+
+    with patch(
+        "astrbot_plugin_livingmemory.core.event_handler.get_persona_id",
+        new_callable=AsyncMock,
+        return_value="persona_1",
+    ):
+        await handler.handle_memory_recall(event, req)
+
+    memory_engine.add_memory.assert_awaited()
+    call_kwargs = memory_engine.add_memory.call_args.kwargs
+    assert call_kwargs["content"] == "我喜欢蓝色"
+    assert call_kwargs["metadata"]["source"] == "user_quick_note"
+
+
+@pytest.mark.asyncio
 async def test_handle_memory_recall_stores_private_user_message(
     handler, conversation_manager
 ):

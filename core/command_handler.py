@@ -148,6 +148,13 @@ class CommandHandler:
 
         try:
             session_id = event.unified_msg_origin
+            from .utils import resolve_memory_scope_candidates
+
+            filtering = self.config_manager.filtering_settings
+            _, _, recall_scope_candidates = resolve_memory_scope_candidates(
+                session_id, filtering
+            )
+            session_id = recall_scope_candidates
             results = await self.memory_engine.search_memories(
                 query=query.strip(), k=k, session_id=session_id
             )
@@ -423,6 +430,12 @@ WebUI 功能:
             from .utils import get_persona_id
 
             persona_id = await get_persona_id(self.context, event)
+            from .utils import resolve_memory_scope_id
+
+            filtering = self.config_manager.filtering_settings
+            memory_scope_id, scope_meta = resolve_memory_scope_id(
+                session_id, filtering
+            )
 
             # 判断是否群聊
             is_group_chat = bool(
@@ -459,10 +472,15 @@ WebUI 功能:
                 "message_count": actual_count - last_summarized_index,
                 "triggered_by": "manual",
             }
+            if session_id:
+                metadata.setdefault("source_session_id", session_id)
+            if scope_meta:
+                for key, value in scope_meta.items():
+                    metadata.setdefault(key, value)
 
             await self.memory_engine.add_memory(
                 content=content,
-                session_id=session_id,
+                session_id=memory_scope_id,
                 persona_id=persona_id,
                 importance=importance,
                 metadata=metadata,

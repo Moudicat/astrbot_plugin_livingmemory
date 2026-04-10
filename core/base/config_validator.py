@@ -3,6 +3,7 @@ config_validator.py - 配置验证模块
 提供配置验证和默认值管理功能。
 """
 
+import json
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
@@ -124,6 +125,56 @@ class ForgettingAgentConfig(BaseModel):
     )
 
 
+class UMOAggregationGroup(BaseModel):
+    """UMO 聚合组配置"""
+
+    group_id: str = Field(default="", description="聚合组ID")
+    umos: list[str] | str = Field(
+        default_factory=list, description="聚合到同组的 UMO 列表"
+    )
+
+    @model_validator(mode="after")
+    def normalize_fields(self):
+        if isinstance(self.group_id, str):
+            self.group_id = self.group_id.strip()
+        if isinstance(self.umos, str):
+            self.umos = [
+                item.strip()
+                for item in self.umos.replace(",", " ").split()
+                if item.strip()
+            ]
+        return self
+
+
+class UMOAggregationConfig(BaseModel):
+    """UMO 聚合配置"""
+
+    enabled: bool = Field(default=False, description="是否启用 UMO 聚合记忆")
+    groups: list[UMOAggregationGroup] | str = Field(
+        default_factory=list, description="聚合组列表"
+    )
+
+    @model_validator(mode="after")
+    def normalize_groups(self):
+        if isinstance(self.groups, str):
+            try:
+                parsed = json.loads(self.groups)
+            except Exception:
+                parsed = []
+            self.groups = parsed if isinstance(parsed, list) else []
+        if self.groups is None:
+            self.groups = []
+        if isinstance(self.groups, list):
+            normalized: list[UMOAggregationGroup] = []
+            for item in self.groups:
+                if isinstance(item, UMOAggregationGroup):
+                    normalized.append(item)
+                elif isinstance(item, dict):
+                    normalized.append(UMOAggregationGroup(**item))
+            self.groups = normalized
+        return self
+
+
 class FilteringConfig(BaseModel):
     """过滤配置"""
 
@@ -132,6 +183,10 @@ class FilteringConfig(BaseModel):
     use_user_filtering: bool = Field(
         default=False,
         description="是否按用户 ID 召回记忆（跨会话）",
+    )
+    umo_aggregation: UMOAggregationConfig = Field(
+        default_factory=UMOAggregationConfig,
+        description="UMO 聚合配置（多个UMO共享记忆）",
     )
 
 

@@ -18,7 +18,11 @@ from .core.base.config_manager import ConfigManager
 from .core.command_handler import CommandHandler
 from .core.event_handler import EventHandler
 from .core.plugin_initializer import PluginInitializer
-from .core.utils import get_persona_id
+from .core.utils import (
+    get_persona_id,
+    resolve_memory_scope_candidates,
+    resolve_memory_scope_id,
+)
 from .webui import WebUIServer
 
 
@@ -287,8 +291,11 @@ class LivingMemoryPlugin(Star):
 
         filtering = self.config_manager.filtering_settings
         use_user_filtering = filtering.get("use_user_filtering", False)
+        _, _, recall_scope_candidates = resolve_memory_scope_candidates(
+            event.unified_msg_origin, filtering
+        )
         session_id = (
-            event.unified_msg_origin
+            recall_scope_candidates
             if filtering.get("use_session_filtering", True) and not use_user_filtering
             else None
         )
@@ -347,6 +354,8 @@ class LivingMemoryPlugin(Star):
         importance = max(0.0, min(1.0, importance))
 
         session_id = event.unified_msg_origin
+        filtering = self.config_manager.filtering_settings
+        memory_scope_id, scope_meta = resolve_memory_scope_id(session_id, filtering)
         persona_id = await get_persona_id(self.context, event)
 
         is_group = event.get_message_type() == MessageType.GROUP_MESSAGE
@@ -355,6 +364,11 @@ class LivingMemoryPlugin(Star):
             "memory_type": "fact",
             "source": "llm_tool_save",
         }
+        if session_id:
+            metadata.setdefault("source_session_id", session_id)
+        if scope_meta:
+            for key, value in scope_meta.items():
+                metadata.setdefault(key, value)
         sender_id = event.get_sender_id()
         if sender_id:
             metadata["user_ids"] = [sender_id]
@@ -363,7 +377,7 @@ class LivingMemoryPlugin(Star):
 
         doc_id = await memory_engine.add_memory(
             content=content,
-            session_id=session_id,
+            session_id=memory_scope_id,
             persona_id=persona_id,
             importance=importance,
             metadata=metadata,

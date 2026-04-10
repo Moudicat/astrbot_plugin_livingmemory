@@ -79,6 +79,18 @@
         "hint": "传给 LLM 的最大历史消息条数。越大上下文越丰富，但消耗 token 越多。建议 20-100。",
         "type": "int",
         "default": 50
+      },
+      "enable_full_group_capture": {
+        "description": "捕获群聊所有消息",
+        "hint": "开启后群聊中非 @Bot 的消息也会被记录到会话历史中。",
+        "type": "bool",
+        "default": true
+      },
+      "max_messages_per_session": {
+        "description": "单会话最大消息数量",
+        "hint": "超出后仅清理已总结的旧消息，避免上下文无限增长。",
+        "type": "int",
+        "default": 1000
       }
     }
   },
@@ -183,6 +195,25 @@
         "hint": "启用后，在记忆召回时会匹配当前发送者的 user_id，用于跨会话召回与该用户相关的所有记忆。启用此选项后会话隔离将自动禁用，以实现跨会话召回。",
         "type": "bool",
         "default": false
+      },
+      "umo_aggregation": {
+        "description": "UMO 聚合记忆",
+        "hint": "将多个 UMO 聚合为同一记忆组，共享记忆。groups 支持 JSON 数组字符串或数组。",
+        "type": "object",
+        "items": {
+          "enabled": {
+            "description": "启用 UMO 聚合",
+            "hint": "开启后会根据 groups 将多个 UMO 映射到同一记忆组。",
+            "type": "bool",
+            "default": false
+          },
+          "groups": {
+            "description": "聚合组列表",
+            "hint": "示例: [{\"group_id\":\"g1\",\"umos\":[\"platform:GroupMessage:123\",\"platform:PrivateMessage:456\"]}]。也可直接填写 JSON 字符串。",
+            "type": "string",
+            "default": "[]"
+          }
+        }
       }
     }
   },
