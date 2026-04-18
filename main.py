@@ -18,6 +18,7 @@ from .core.base.config_manager import ConfigManager
 from .core.command_handler import CommandHandler
 from .core.event_handler import EventHandler
 from .core.plugin_initializer import PluginInitializer
+from .core.tools import MemorySearchTool
 from .core.utils import (
     get_persona_id,
     resolve_memory_scope_candidates,
