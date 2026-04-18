@@ -1,4 +1,4 @@
-name: 长期记忆插件
+name: astrbot_plugin_livingmemory
 author: lxfight
 version: 2.3.1
 description: 为 AstrBot 打造的、拥有完整记忆生命周期的智能长期记忆插件。(v2.0重构版）
